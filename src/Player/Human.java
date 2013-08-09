@@ -14,14 +14,16 @@ public class Human extends Player {
     }
 
     @Override
-    public void play(int[][] board) {
-        int x, y;
+    public void play(byte[][] board) {
+        readFromConsole(board);
+    }
+
+    protected void readFromConsole(byte[][] board) {
         do {
+            System.out.println(": ");
             char[] step = sc.nextLine().toCharArray();
             x = step[0] - '0';
             y = step[1] - '0';
         } while (board[y][x] != GameBoard.EMPTY);
-        this.x = x;
-        this.y = y;
     }
 }

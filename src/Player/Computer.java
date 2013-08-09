@@ -11,21 +11,19 @@ import java.util.Random;
  */
 public class Computer extends Player {
 
-    private Random rand = new Random();
-
     public Computer(int mark) {
         super(mark);
     }
 
     @Override
-    public void play(int[][] board) {
+    public void play(byte[][] board) {
         int[] xy;
         xy = step(board);
         this.x = xy[0];
         this.y = xy[1];
     }
 
-    private int[] step(int[][] board) {
+    private int[] step(byte[][] board) {
         int x, y;
         //линия с двумя своими "фишками" и пустым полем
         for (int i = 0; i < board.length; i++) {
@@ -99,7 +97,7 @@ public class Computer extends Player {
         return t;
     }
 
-    private int checkDiagonal(int[][] arr, int startIndex, int mark) {
+    private int checkDiagonal(byte[][] arr, int startIndex, int mark) {
         int countOfEmptyField = 0;
         int countOfBusyField = 0;
         int emptyIndex = -1;
@@ -122,7 +120,7 @@ public class Computer extends Player {
         return -1;
     }
 
-    private int checkHorizontalLine(int[][] arr, int row, int mark) {
+    private int checkHorizontalLine(byte[][] arr, int row, int mark) {
         int countOfEmptyField = 0;
         int countOfBusyField = 0;
         int emptyIndex = -1;
@@ -139,7 +137,7 @@ public class Computer extends Player {
         return -1;
     }
 
-    private int checkVerticalLine(int[][] arr, int col, int mark) {
+    private int checkVerticalLine(byte[][] arr, int col, int mark) {
         int countOfEmptyField = 0;
         int countOfBusyField = 0;
         int emptyIndex = -1;

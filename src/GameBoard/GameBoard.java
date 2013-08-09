@@ -1,12 +1,8 @@
 package GameBoard;
 
-import Player.Computer;
-import Player.Human;
-import Player.Player;
+import Player.*;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Scanner;
 
 /**
@@ -16,39 +12,51 @@ import java.util.Scanner;
  */
 public class GameBoard {
 
-    public static final int ZERO = 0;
-    public static final int CROSS = 1;
-    public static final int EMPTY = -1;
+    public static final byte ZERO = 0;
+    public static final byte CROSS = 1;
+    public static final byte EMPTY = -1;
 
-    public static final int DEADHEAD = 2;
+    public static final byte DEADHEAD = 2;
 
     private int emptyField;
 
-    private History history=new History();
+    private History history = new History();
+    private boolean historyON = true;
 
-    public static final int SINGLEPLAYER = 0;
-    public static final int MULTIPLAYER = 1;
-    public static final int NETWORKING = 2;
+    public static final byte SINGLEPLAYER = 0;
+    public static final byte MULTIPLAYER = 1;
+    public static final byte NETWORKING = 2;
+
+    private boolean isServer = false;
 
     private Player player;
     private Player enemy;
 
     private boolean endGame = false;
-    private int[][] board = new int[3][3];
+    private byte[][] board = new byte[3][3];
     private Scanner sc;
 
     public GameBoard(int typeOfGame) {
-        player = new Human(CROSS);
-        switch (typeOfGame) {
-            case SINGLEPLAYER:
-                enemy = new Computer(ZERO);
-                break;
-            case MULTIPLAYER:
-                enemy = new Human(ZERO);
-                break;
-            case NETWORKING:
-                break;
+        init();
+        setTypeOfGame(typeOfGame);
+    }
+
+    public GameBoard(int typeOfGame, String serverIP) {
+        init();
+        setTypeOfGame(typeOfGame);
+        if (typeOfGame == NETWORKING) {
+            ((ClientPlayer) (enemy)).setServerIP(serverIP);
+            ((ClientPlayer) (enemy)).startClient();
         }
+    }
+
+    public GameBoard(int typeOfGame, boolean isServer) {
+        init();
+        this.isServer = isServer;
+        setTypeOfGame(typeOfGame);
+    }
+
+    private void init() {
         emptyField = board.length * board.length;
         Arrays.fill(board[0], EMPTY);
         Arrays.fill(board[1], EMPTY);
@@ -57,139 +65,162 @@ public class GameBoard {
         sc = new Scanner(System.in);
     }
 
+    private void setTypeOfGame(int typeOfGame) {
+        switch (typeOfGame) {
+            case SINGLEPLAYER:
+                player = new Human(CROSS);
+                enemy = new Computer(ZERO);
+                break;
+            case MULTIPLAYER:
+                player = new Human(CROSS);
+                enemy = new Human(ZERO);
+                break;
+            case NETWORKING:
+                if (isServer) {
+                    player = new ServerPlayer(CROSS);
+                    enemy = ((ServerPlayer) (player)).getRemotePlayer(ZERO);
+                    ((ServerPlayer) (player)).startServer();
+                } else {
+                    enemy = new ClientPlayer(ZERO);
+                    player = ((ClientPlayer) (enemy)).getRemotePlayer(CROSS);
+                }
+                historyON = false;
+                break;
+        }
+    }
+
     public void nextStep() {
         if (!endGame) {
             player.play(board);
             printStep('X', player.getX(), player.getY());
             board[player.getY()][player.getX()] = CROSS;
-            history.append(player.getX(),player.getY(),CROSS);
+            history.append(player.getX(), player.getY(), CROSS);
             emptyField--;
             printBoard();
-            switch (checkState()) {
-                case ZERO:
-                    System.out.print("Win 0");
-                    endGame = true;
-                    return;
-                case CROSS:
-                    System.out.print("Win x");
-                    endGame = true;
-                    return;
-                case DEADHEAD:
-                    System.out.print("Dead Head");
-                    endGame = true;
-                    return;
-            }
+            if (win()) return;
 
             enemy.play(board);
             printStep('0', enemy.getX(), enemy.getY());
             board[enemy.getY()][enemy.getX()] = ZERO;
-            history.append(enemy.getX(),enemy.getY(),ZERO);
+            history.append(enemy.getX(), enemy.getY(), ZERO);
             emptyField--;
             printBoard();
-            switch (checkState()) {
-                case ZERO:
-                    System.out.print("Win 0");
-                    endGame = true;
-                    return;
-                case CROSS:
-                    System.out.print("Win x");
-                    endGame = true;
-                    return;
-                case DEADHEAD:
-                    System.out.print("Dead Head");
-                    endGame = true;
-                    return;
-            }
+            if (win()) return;
+
             history.print();
-            System.out.println("Go to back Step Y/N");
-            if(sc.next().toUpperCase().equals("Y")){
-                int s=sc.nextInt();
-                history.goBackToStep(s,board);
-                emptyField=board.length*board.length-s*2;
-                System.out.print(emptyField);
-                printBoard();
+            if (historyON) {
+                System.out.println("Go to back Step Y/N");
+                if (sc.next().toUpperCase().equals("Y")) {
+                    int s = sc.nextInt();
+                    history.goBackToStep(s, board);
+                    emptyField = board.length * board.length - s * 2;
+                    System.out.print(emptyField);
+                    printBoard();
+                }
             }
         }
+    }
+
+    private boolean win() {
+        switch (checkState()) {
+            case ZERO:
+                System.out.print("Win 0");
+                endGame = true;
+                return true;
+            case CROSS:
+                System.out.print("Win x");
+                endGame = true;
+                return true;
+            case DEADHEAD:
+                System.out.print("Dead Head");
+                endGame = true;
+                return true;
+        }
+        return false;
     }
 
     private int checkState() {
-        int win=-1;
+        int win = -1;
 
-        if(checkDiagonal(0)){
-            win=board[0][0];
-        }
-        else if(checkDiagonal(2)){
-            win=board[0][2];
+        if (checkDiagonal(0)) {
+            win = board[0][0];
+        } else if (checkDiagonal(2)) {
+            win = board[0][2];
         }
 
         //проверка остальных линий
-        if(win==-1)
-            for(int i=0;i<board.length;i++){
-                if(checkHorizontalLine(i)){
-                    win=board[i][0];
+        if (win == -1)
+            for (int i = 0; i < board.length; i++) {
+                if (checkHorizontalLine(i)) {
+                    win = board[i][0];
                     break;
                 }
-                if(checkVerticalLine(i)){
-                    win=board[0][i];
+                if (checkVerticalLine(i)) {
+                    win = board[0][i];
                     break;
                 }
             }
-        if(win==-1 && emptyField==0)
-            win=DEADHEAD;
-       return win;
+        if (win == -1 && emptyField == 0)
+            win = DEADHEAD;
+        return win;
     }
 
-    private boolean checkHorizontalLine(int row){
-        int countOfCross=0;
-        int countOfZero=0;
-        for(int i=0;i<board.length;i++){
-            switch (board[row][i]){
-                case CROSS: countOfCross++;
+    private boolean checkHorizontalLine(int row) {
+        int countOfCross = 0;
+        int countOfZero = 0;
+        for (int i = 0; i < board.length; i++) {
+            switch (board[row][i]) {
+                case CROSS:
+                    countOfCross++;
                     break;
-                case ZERO: countOfZero++;
+                case ZERO:
+                    countOfZero++;
                     break;
             }
         }
-        if(countOfCross==3 || countOfZero==3)
+        if (countOfCross == 3 || countOfZero == 3)
             return true;
         return false;
     }
 
-    private boolean checkVerticalLine(int col){
-        int countOfCross=0;
-        int countOfZero=0;
-        for(int i=0;i<board.length;i++){
-            switch (board[i][col]){
-                case CROSS: countOfCross++;
+    private boolean checkVerticalLine(int col) {
+        int countOfCross = 0;
+        int countOfZero = 0;
+        for (int i = 0; i < board.length; i++) {
+            switch (board[i][col]) {
+                case CROSS:
+                    countOfCross++;
                     break;
-                case ZERO: countOfZero++;
+                case ZERO:
+                    countOfZero++;
                     break;
             }
         }
-        if(countOfCross==3 || countOfZero==3)
+        if (countOfCross == 3 || countOfZero == 3)
             return true;
         return false;
     }
 
-    private boolean checkDiagonal(int startIndex){
-        int countOfCross=0;
-        int countOfZero=0;
+    private boolean checkDiagonal(int startIndex) {
+        int countOfCross = 0;
+        int countOfZero = 0;
         int j;
-        for(int i=0;i<board.length;i++){
-            if(startIndex==0){
-                j=i;
+        for (int i = 0; i < board.length; i++) {
+            if (startIndex == 0) {
+                j = i;
+            } else {
+                j = 2 - i;
             }
-            else{
-                j=2-i;
-            }
-            switch (board[i][j]){
-                case CROSS: countOfCross++;
+            switch (board[i][j]) {
+                case CROSS:
+                    countOfCross++;
                     break;
-                case ZERO: countOfZero++;
+                case ZERO:
+                    countOfZero++;
                     break;
             }
         }
-        if(countOfCross==3 || countOfZero==3)
+        if (countOfCross == 3 || countOfZero == 3)
             return true;
         return false;
     }

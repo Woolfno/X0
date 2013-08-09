@@ -28,7 +28,7 @@ public abstract class Player {
         this.y = -1;
     }
 
-    abstract public void play(int[][] board);
+    abstract public void play(byte[][] board);
 
     public int getX() {
         return x;
@@ -37,5 +37,6 @@ public abstract class Player {
     public int getY() {
         return y;
     }
+
 
 }
